@@ -861,6 +861,12 @@ INSERT INTO mcp_servers (name, transport, url, env, enabled)
 VALUES ('ScopeSentry', 'http', NULL, '{"X-API-Key":""}', false)
 ON CONFLICT (name) DO NOTHING;
 
+-- AboutSecurity 知识库由 context1337 提供 Streamable HTTP MCP 服务。
+-- 地址依部署方式填写；仅预置禁用占位，不覆盖已有配置或自动授权 Agent。
+INSERT INTO mcp_servers (name, transport, url, env, enabled)
+VALUES ('aboutsecurity', 'http', NULL, '{}', false)
+ON CONFLICT (name) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS mcp_tools_cache (
     id            BIGSERIAL PRIMARY KEY,
     server_id     BIGINT NOT NULL REFERENCES mcp_servers(id) ON DELETE CASCADE,

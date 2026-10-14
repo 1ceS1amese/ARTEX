@@ -66,6 +66,13 @@ AI 自主渗透测试系统（Go 后端 + Next.js 前端）
 
 ## 安装
 
+### AboutSecurity 知识库 MCP
+
+本地 [AboutSecurity](https://github.com/wgpsec/AboutSecurity) 可通过独立的 `context1337` 服务接入 ARTEX。
+ARTEX 使用现有的 Streamable HTTP MCP 客户端，不需要改 Agent 主循环。
+服务地址、请求头与 Agent 授权在原有 MCP 管理页配置；接入及兼容性验证步骤见
+[AboutSecurity MCP 接入说明](ABOUTSECURITY_MCP.md)。
+
 > 依赖数据库 **PostgreSQL**；探索需配置 **LLM**（`ANTHROPIC_API_KEY` 或 `OPENAI_API_KEY`，也可在 UI 里配）。
 
 ### 方式一：一键安装脚本（推荐）

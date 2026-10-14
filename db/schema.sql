@@ -862,7 +862,8 @@ VALUES ('ScopeSentry', 'http', NULL, '{"X-API-Key":""}', false)
 ON CONFLICT (name) DO NOTHING;
 
 -- AboutSecurity 知识库由 context1337 提供 Streamable HTTP MCP 服务。
--- 地址依部署方式填写；仅预置禁用占位，不覆盖已有配置或自动授权 Agent。
+-- 地址依部署方式填写；仅预置禁用占位，不覆盖已有配置。
+-- planner 的一次性默认授权在 seedBuiltins 后执行，可在页面撤销且重启不恢复。
 INSERT INTO mcp_servers (name, transport, url, env, enabled)
 VALUES ('aboutsecurity', 'http', NULL, '{}', false)
 ON CONFLICT (name) DO NOTHING;

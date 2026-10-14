@@ -264,6 +264,9 @@ ON CONFLICT (name) DO NOTHING`,
 		`["@playwright/mcp","--headless"]`); err != nil {
 		return fmt.Errorf("seed browser mcp: %w", err)
 	}
+	if err := d.seedAboutSecurityPlannerVisibility(); err != nil {
+		return fmt.Errorf("seed AboutSecurity planner visibility: %w", err)
+	}
 	// NOTE: the placeholder ScopeSentry data-source MCP (empty URL + empty X-API-Key,
 	// disabled) is seeded directly in schema.sql §F so a raw `psql < schema.sql` init
 	// also gets it. schema.sql is Exec'd on every startup, so it stays idempotent.
@@ -283,6 +286,39 @@ ON CONFLICT (name) DO NOTHING`,
 		return fmt.Errorf("seed asset intercept rules: %w", err)
 	}
 	return nil
+}
+
+// Grant planner access once, including on existing databases. The one-time flag
+// lets a later UI revocation stay revoked after restart. The MCP itself remains
+// disabled until an administrator configures and enables its endpoint.
+func (d *DB) seedAboutSecurityPlannerVisibility() error {
+	const flag = "aboutsecurity_planner_visibility_v1"
+	tx, err := d.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var done bool
+	if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM settings WHERE key=$1 AND value='true')`, flag).Scan(&done); err != nil {
+		return err
+	}
+	if done {
+		return tx.Commit()
+	}
+	if _, err := tx.Exec(`
+INSERT INTO agent_visibility(agent_id, resource_kind, resource_id, enabled)
+SELECT a.id, 'mcp', m.id, true
+FROM agents a CROSS JOIN mcp_servers m
+WHERE a.key='planner' AND m.name='aboutsecurity'
+ON CONFLICT (agent_id, resource_kind, resource_id, mcp_tool_name)
+DO UPDATE SET enabled=true`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`INSERT INTO settings(key, value) VALUES ($1, 'true')
+ON CONFLICT (key) DO UPDATE SET value='true'`, flag); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // seedDefaultAssetInterceptRules inserts the built-in asset blocklist (fuzzy

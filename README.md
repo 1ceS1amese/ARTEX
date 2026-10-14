@@ -89,13 +89,19 @@ cd ARTEX
 git clone https://github.com/mhtsec/ARTEX.git
 cd ARTEX
 cp .env.example .env          # 填 POSTGRES_PASSWORD、可选 ANTHROPIC_API_KEY
-docker compose up -d          # 拉取 mianhuatang11/artex 镜像 + postgres
+docker compose up --build -d  # 从当前源码构建含 JADX 的镜像 + postgres
 # → http://localhost:8787
 ```
 
 > 原镜像源 `autumn27/artex` 已从 Docker Hub 删除，镜像现由本仓库自维护为 **`mianhuatang11/artex`**。
 > 镜像源不可用（或想自行改代码）时，本地从纯源码构建即可：`docker compose build && docker compose up -d`。
 > Dockerfile 为多阶段构建（前端静态导出 → Go 静态编译 → 运行镜像），默认走国内友好依赖源，可加 `--build-arg GOPROXY=... / --build-arg NPM_REGISTRY=...` 覆盖。
+
+### JADX 反编译工具
+
+ARTEX 内置 `jadx_decompile` 工具，默认提供给 `worker` 和 `pentest` Agent，也可在「工具管理」里调整绑定。输入文件须位于当前 Agent 的工作目录内；结果写到该目录的 `jadx-output/run-*`，工具返回 JSON 格式的状态、输出路径和文件数量。支持 APK、DEX、JAR、AAB 等 JADX CLI 输入格式，不执行 `.jadx.kts` 脚本。
+
+Docker 镜像在构建时安装 Java 17 和经过 SHA-256 校验的官方 JADX 1.5.6；使用本仓库源码运行 `docker compose up --build -d` 后即可使用，无需在宿主机安装 JADX。本地模式的 `./install.sh` 会把同一版本装入项目的 `.tools/` 隐藏目录，并在启动 ARTEX 时配置好工具路径。以后手动启动本地构建的 `./artex` 时，需设置 `ARTEX_JADX_BIN` 指向 `.tools/jadx-1.5.6/bin/jadx`，也可指向官方的 `jadx-1.5.6-all.jar`（需要 `java` 在 PATH 中）或把 `jadx` 加入 PATH。
 
 镜像已含常用工具（ripgrep/curl/vim/npm/nmap…）；`./skills` 与 `./data` 以绑定挂载持久化。
 

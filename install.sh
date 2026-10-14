@@ -45,11 +45,51 @@ install_docker(){
   else
     info "沿用已存在的 .env"
   fi
-  info "拉取镜像并启动…"
-  docker compose pull || true
+  info "从当前源码构建包含 JADX 的 ARTEX 镜像并启动…"
+  docker compose build artex
   docker compose up -d
   ok "启动完成 → http://localhost:8787"
   info "查看日志：docker compose logs -f artex"
+}
+
+# 本地模式使用项目私有工具目录，不依赖操作者预先安装 JADX。
+ensure_jadx_local(){
+  local version=1.5.6
+  local checksum=545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974
+  local target="$PWD/.tools/jadx-$version"
+  if ! command -v java >/dev/null 2>&1; then
+    if [ "$(uname -s)" = Linux ] && command -v apt-get >/dev/null 2>&1; then
+      info "安装 JADX 所需的 Java 运行时…"
+      sudo apt-get update && sudo apt-get install -y openjdk-17-jre-headless
+    else
+      die "本地模式需要 Java 17+；请先安装 Java 后重试"
+    fi
+  fi
+  command -v curl >/dev/null 2>&1 || die "安装 JADX 需要 curl"
+  command -v unzip >/dev/null 2>&1 || die "安装 JADX 需要 unzip"
+  if [ ! -x "$target/bin/jadx" ]; then
+    [ ! -e "$target" ] || die "$target 不完整，请检查后重试"
+    mkdir -p "$PWD/.tools"
+    local tmp actual
+    tmp="$(mktemp -d "$PWD/.tools/jadx-install-XXXXXX")"
+    info "下载并校验官方 JADX $version…"
+    curl -fL --retry 3 "https://github.com/skylot/jadx/releases/download/v$version/jadx-$version.zip" -o "$tmp/jadx.zip"
+    if command -v sha256sum >/dev/null 2>&1; then
+      actual="$(sha256sum "$tmp/jadx.zip" | cut -d ' ' -f 1)"
+    else
+      actual="$(shasum -a 256 "$tmp/jadx.zip" | cut -d ' ' -f 1)"
+    fi
+    [ "$actual" = "$checksum" ] || die "JADX 下载文件校验失败"
+    mkdir "$tmp/release"
+    unzip -q "$tmp/jadx.zip" -d "$tmp/release"
+    chmod +x "$tmp/release/bin/jadx"
+    mv "$tmp/release" "$target"
+    rm -f "$tmp/jadx.zip"
+    rmdir "$tmp"
+  fi
+  export ARTEX_JADX_BIN="$target/bin/jadx"
+  "$ARTEX_JADX_BIN" --version >/dev/null || die "JADX 无法启动，请检查 Java 版本"
+  ok "JADX $version 已就绪"
 }
 
 # ── ② 本地编译运行 ──────────────────────────────
@@ -92,6 +132,8 @@ JSON
   # go 环境检查
   command -v go >/dev/null 2>&1 || die "未检测到 Go，请先安装 Go（>=1.26）：https://go.dev/dl/"
   ok "Go: $(go version)"
+
+  ensure_jadx_local
 
   # 内嵌前端需要 node 出静态产物
   if command -v npm >/dev/null 2>&1; then
